@@ -1,1 +1,1 @@
-# Neuronal_Network
+# Neural_Network
