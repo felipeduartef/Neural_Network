@@ -147,13 +147,33 @@ plt.show()
 fig = plt.figure()
 ax1 = fig.add_subplot(111, projection='3d')
 
-ax1.scatter(df_TN[1], df_TN[5], df_TN[3], c='g', marker='o')
-ax1.set_xlabel('X')
+ax1.scatter(df_TN[2], df_TN[5], df_TN[3], c='g', marker='o')
+ax1.set_xlabel('X2')
 ax1.set_ylabel('Clase')
-ax1.set_zlabel('Z')
+ax1.set_zlabel('X3')
 ax1.legend()
 
 plt.show()
+
+# %% [markdown]
+# ## Función para medir el error del dataset
+
+# %%
+def ErrorDataframe(W, Dataf):   
+    #Calcula el error promedio del vector de errores para cada fila del dataset
+    error =[]
+
+    for i in range(len(Dataf)):
+        x1,x2,y =  Dataf.iloc[i, 2], Dataf.iloc[i, 3], Dataf.iloc[i, 4]  # Entradas y valor esperado
+        x = np.array([x1,x2,1])  # Arreglo de entradas
+        x_w = (W.T * x)         # Multiplicación de entradas por los pesos
+        suma = x_w[0] + x_w[1] + x_w[2] # Sumatoria de los productos
+        error_i = suma - y                # Cálculo del error
+        error.append(error_i)           # Se agrega el error calculado al arreglo de errores de entrenamiento
+
+    error = np.array(error)
+    return np.mean(error)
+
 
 # %% [markdown]
 # # MONOCAPA
@@ -161,7 +181,7 @@ plt.show()
 # %%
 import random
 Tolerancia = 0.03 # Valor de tolerancia de error
-error = 100       # Error grande
+errorDataset = 100       # Error grande
 
 error_T = []  # Arreglo para almacenar los valores del error para cada elemento de entrenamiento
 error_P = []  # Arreglo para almacenar los valores del error para cada elemento de prueba
@@ -169,45 +189,48 @@ w0 = [1,1,0]  # Pesos iniciales arbitrarios
 w0 = np.array(w0) 
 iter = 0      # Contador de iteraciones
 u = 0.04      # Paso para modificación de pesos
-t = 0         # Cantidad de aciertos continuos para mejorar el algoritmo
 
-while (np.abs(error) > Tolerancia or t < 4):  # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 4
+while (np.abs(errorDataset) > Tolerancia ):  # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 4
     ########## Entrenamiento #########
     i = random.randint(0, 104)  # Índice aleatorio
     x1,x2,y =  df_TN.iloc[i, 2], df_TN.iloc[i, 3], df_TN.iloc[i, 4]  # Entradas y valor esperado
+
     x = np.array([x1,x2,1])  # Arreglo de entradas
     x_w = (w0.T * x)         # Multiplicación de entradas por los pesos
+
     suma = x_w[0] + x_w[1] + x_w[2] # Sumatoria de los productos
     error = suma - y                # Cálculo del error
-    error_T.append(error)           # Se agrega el error calculado al arreglo de errores de entrenamiento
+
 
     ###########    Prueba  ##########
     j = random.randint(0, 29) # Índice aleatorio
     x3,x4,y1 =  df_PN.iloc[j, 2], df_PN.iloc[j, 3], df_PN.iloc[j, 4]  # Entradas y valor esperado
+
     x_P = np.array([x3,x4,1])   # Arreglo de entradas
     xP_w = (w0.T * x_P)         # Multiplicación de entradas por los pesos
+
     sumaP = xP_w[0] + xP_w[1] + xP_w[2]  # Sumatoria de los productos
     errorP = sumaP - y1         # Cálculo del error
-    error_P.append(errorP)      # Se agrega el error calculado al arreglo de errores de prueba
 
-    if  np.abs(error) > Tolerancia:   # Condición para modificar los pesos de la siguiente iteración
-        w0 = w0 - u*x*error           # Modificación de los pesos
-        t = 0                         # Reinicia contador de aciertos
-    elif  np.abs(error) < Tolerancia: # Condición de acierto
-        t += 1                        #Contar acierto
+    w0 = w0 - u*x*error           # Modificación de los pesos
+
+    errorDataset = ErrorDataframe(w0, df_TN)   #Evaluación del dataset de entrenamiento para los pesos modificados
+    errorDP = ErrorDataframe(w0, df_PN)        #Evaluación del dataset de prueba para los pesos modificados
+
+    error_T.append(errorDataset)         # Se guarda el valor promedio del error en el dataset para graficarlos
+    error_P.append(errorDP)
 
     iter += 1      # Contador de iteraciones
 
-    # Condiciones para salir del ciclo while
+    # Condiciones para salir del ciclo while en caso de no converger
     if iter > 2000:
-        error = 0.06
-        t = 6
+        errorDataset = Tolerancia - 0.01
 
 ####### Gráfica de resultados ################
 x = np.arange(0,len(error_T))    # Vector que representa el número de iteraciones
 
-plt.plot(x, np.abs(error_T), 'x', label = "Entrenamiento")  #Gráfica de arreglo de errores de Entrenamiento
-plt.plot(x, np.abs(error_P), 'o',label = "Prueba")          #Gráfica de arreglo de errores de Prueba
+plt.plot(x, np.abs(error_T), 'o', label = "Entrenamiento")  #Gráfica de arreglo de errores de Entrenamiento
+plt.plot(x, np.abs(error_P), '*',label = "Prueba")          #Gráfica de arreglo de errores de Prueba
 plt.xlabel("Iteraciones")    # Etiqueta de eje X
 plt.ylabel("Error")          # Etiqueta de eje Y
 plt.title("Error Entrenamiento y Prueba")   # Título del gráfico
@@ -215,7 +238,7 @@ plt.legend()
 plt.show()
 
 # %%
-error_R = [] #Arreglo de resultados obtenidos 
+Resultado = [] #Arreglo de resultados obtenidos 
 for k in range(15):
     
     ##########   Validación   ###############
@@ -223,12 +246,12 @@ for k in range(15):
     x_R = np.array([x3,x4,1])                   # Arreglo de entradas
     xR_w = (w0.T * x_R)                         # Multiplicación de entradas por los pesos
     sumaR = xR_w[0] + xR_w[1] + xR_w[2]         # Sumatoria de los productos
-    error_R.append(sumaR)                       # Se agrega el resultado de la sumatoria
+    Resultado.append(sumaR)                       # Se agrega el resultado de la sumatoria
 
 ####### Gráfica de resultados #########
-x = np.arange(0,len(error_R)) # Vector que representa el número de elementos
+x = np.arange(0,len(Resultado)) # Vector que representa el número de elementos
 
-plt.plot(x, np.abs(error_R), 'o') #Gráfica de arreglo de resultado obtenido para cada elemento
+plt.plot(x, np.abs(Resultado), 'o') #Gráfica de arreglo de resultado obtenido para cada elemento
 plt.xlabel("Elemento")
 plt.ylabel("Valor obtenido")
 plt.title("Validación")
@@ -237,22 +260,58 @@ plt.show()
 # %% [markdown]
 # # Multicapa
 
+# %% [markdown]
+# ## Función para calcular el error en el dataset
+
+# %%
+## Función de error del dataset
+def ErrorDataMulticapa(Wj, Wk, Dataf):
+    error = []
+
+    for i in range(len(Dataf)):
+        x1,x2,y =  Dataf.iloc[i, 2], Dataf.iloc[i, 3], Dataf.iloc[i, 4]  # Entradas y valor esperado
+        x = np.array([x1,x2,1])  # Arreglo de entradas
+        x_w0 = (Wj[0:3].T * x)
+        x_w1 = (Wj[3:6].T * x)
+        A0 = x_w0[0] + x_w0[1] + x_w0[2]
+        A1 = x_w1[0] + x_w1[1] + x_w1[2]
+        Z1 = sig(A0)
+        Z2 = sig(A1)
+        h = np.array([Z1,Z2,1]) #Arreglo de entradas para la segunda capa
+        ##### Segunda capa  #####
+        x_w2 = (Wk.T * h)
+        AK = x_w2[0] + x_w2[1] + x_w2[2]
+
+        
+        if(AK <= 0.3):     #Rango para tipo 3
+            ZK = 3.0 
+        elif(AK <= 0.45):  #Rango para tipo 2
+            ZK = 2.0
+        else:              #Rango para tipo 1
+            ZK = 1.0
+        
+
+        error_i = ZK - y               # Cálculo del error para la fila i
+        error.append(error_i)           # Se agrega el error calculado al arreglo de errores de entrenamiento
+
+    error = np.array(error)
+    ERROR = 1 - (np.count_nonzero(error == 0.0)/ len(error))  # Núm. de errores / total de muestras
+    return ERROR
+
 # %%
 #Función sigmoide
 def sig(x):
     h = 1 / (1 + np.exp(x))
     return h
 
-Tolerancia = 0  # Valor de tolerancia de error
-error = 100        # Error grande
+Tolerancia = 0.03 # Valor de tolerancia de error
+errorTN = 100        # Error grande
 errorP = 100       # Error Prueba grande
-error_salida = 100 # # Error dela salida de la red
 
 error_T = []       # Arreglo para almacenar los valores del error para cada elemento de entrenamiento
 error_P = []       # Arreglo para almacenar los valores del error para cada elemento de prueba
-error_s = []       # Arreglo para almacenar los valores del error para cada salida
 w0 = np.array([1, 1, 0, 1, 1,0])  # Pesos para primera capa, con bias 
-w1 = np.array([0.5,0.2, 0])       # Pesos para la segunda capa, con bias
+w1 = np.array([1,1, 0])       # Pesos para la segunda capa, con bias
 
 w0_post = np.array([0,0,0,0,0,0]) # Pesos para primera capa siguiente iteración, con bias
 w1_post = np.array([0,0,0])       # Pesos para la segunda capa siguiente iteración, con bias
@@ -260,149 +319,122 @@ w1_post = np.array([0,0,0])       # Pesos para la segunda capa siguiente iteraci
 iter = 0                #Contador de iteraciones
 t = 0                   #Contador de aciertos continuos
 
-u = 0.002               #Paso para modificación de pesos
+u = 0.004            #Paso para modificación de pesos
 
-while (np.abs(error) != Tolerancia) or t < 100:   # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 30
+while (np.abs(errorTN) > Tolerancia):   # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 30
     ########### Entrenamiento  #############
     i = random.randint(0, 104)  # Índice aleatorio
     x1,x2,y =  df_TN.iloc[i, 2], df_TN.iloc[i, 3], df_TN.iloc[i, 4]   # Entradas y valor esperado
     x = np.array([x1,x2,1])     # Arreglo de entradas
-
-    ###########    Prueba    ###############
-    j = random.randint(0, 29)  # Índice aleatorio
-    x3,x4,y1 =  df_PN.iloc[j, 2], df_PN.iloc[j, 3], df_PN.iloc[j, 4] # Entradas y valor esperado
-    x_P = np.array([x3,x4,1])    # Arreglo de entradas
-    xP_w0 = (w0[0:3].T * x_P)    # Multiplicación de entradas con los pesos para la neurona 1
-    xP_w1 = (w0[3:6].T * x_P)    # Multiplicación de entradas con los pesos para la neurona 2
-    sumP0 = xP_w0[0] + xP_w0[1] + xP_w0[2]  #Sumatoria de productos para neurona 1
-    sumP1 = xP_w1[0] + xP_w1[1] + xP_w1[2]  #Sumatoria de productos para neurona 2
-    h1P = sig(sumP0)             # Función de transferencia para resultado de la suma de la neurona 1
-    h2P = sig(sumP1)             # Función de transferencia para resultado de la suma de la neurona 2
-    h_P = np.array([h1P,h2P,1])  # Arreglo de resultado de las neuronas 1 y 2
-    xP_w2 = (w1.T * h_P)         # Multiplicación de arreglo de resultados de la capa interna por los pesos de la segunda capa
-    sumP2 = xP_w2[0] + xP_w2[1] + xP_w2[2] #Sumatoria de los productos para la segunda capa
-    resultP = sig(sumP2)         # Resultado final
-
-    error_salida_P = resultP * (1 - resultP) * (y - resultP)  # Error del resultado obtenido
-    if np.abs(error_salida_P) < 0.3:
-        errorP = 1 - y
-    elif np.abs(error_salida_P) < 0.39:
-        errorP = 2 - y
-    elif np.abs(error_salida_P) < 0.49:
-        errorP = 3 - y
-    error_P.append(errorP)
 
     #Entradas multiplicadas por los pesos de la primera capa
     x_w0 = (w0[0:3].T * x)
     x_w1 = (w0[3:6].T * x)
 
     # Suma de la multiplicación de cada entrada de las neuronas
-    sum0 = x_w0[0] + x_w0[1] + x_w0[2]
-    sum1 = x_w1[0] + x_w1[1] + x_w1[2]
+    A0 = x_w0[0] + x_w0[1] + x_w0[2]
+    A1 = x_w1[0] + x_w1[1] + x_w1[2]
+
 
     # Función de transferencia de cada neurona
-    h1 = sig(sum0)
-    h2 = sig(sum1)
+    Z1 = sig(A0)
+    Z2 = sig(A1)
 
-    h = np.array([h1,h2,1])
+    h = np.array([Z1,Z2,1]) #Arreglo de entradas para la segunda capa
 
-    ##### Segunda capa  ###
+    ##### Segunda capa  #####
     x_w2 = (w1.T * h)
-    sum2 = x_w2[0] + x_w2[1] + x_w2[2]
-    result = sig(sum2)
+    AK = x_w2[0] + x_w2[1] + x_w2[2]
 
-    # Cálculo de error de la salida
-    error_salida = result * (1 - result) * (y - result)
-    error_s.append(error_salida)
+    DK = y - AK
+    DJ0 = Z1 * (1 - Z1) * (w1[0] * DK)   #Propagación del error
+    DJ1 = Z2 * (1 - Z2) * (w1[1] * DK)   #Propagación del error
 
-    if np.abs(error_salida) > Tolerancia:
 
-        # Cálculo de los pesos de la capa 2
-        w1_post[0] = np.round(w1[0] + u*h1*error_salida)
-        w1_post[1] = np.round(w1[0] + u*h2*error_salida)
+    # Cálculo de pesos del siguiente paso para la capa  2
 
-        ##### Cálculo de error para la capa 1 #######
-        # Neurona 1
-        error_N1 = h1*(1-h1)*(w1[0]*error_salida)
+    w1_post0 = w1[0] - u * DK * Z1
+    w1_post1 = w1[1] - u * DK * Z2
+    w1_post = np.array([w1_post0, w1_post1, 0])
 
-        # Neurona 2
-        error_N2 = h2*(1-h2)*(w1[1]*error_salida)
+    # Cálculo de pesos del siguiente paso para la capa 1
+    w0_post0 = w0[0] - u * DJ0 * x1 #Neurona 1
+    w0_post1 = w0[1] - u * DJ0 * x2
 
-        # Cálculo de los pesos de la capa 1 para la neurona 1
-        w0_post[0] = w0[0] + u*x1*error_N1
-        w0_post[1] = w0[1] + u*x2*error_N1
+    w0_post3 = w0[3] - u * DJ1 * x1 #Neurona 2
+    w0_post4 = w0[4] - u * DJ1 * x2
 
-        # Cálculo de los pesos de la capa 1 para la neurona 2
-        w0_post[3] = w0[3] + u*x1*error_N2
-        w0_post[4] = w0[4] + u*x2*error_N2
+    w0_post = np.array([w0_post0, w0_post1, 0,w0_post3, w0_post4, 0])
 
-        ##### actualización de los pesos de las 2 capas para la siguiente iteración
-        w0 = w0_post
-        w1 = w1_post
-        
-    if np.abs(result) < 0.3:  # Resultado para clase 1
-        error = 1 - y
-    elif np.abs(result) < 0.4: # Resultado para clase 2
-        error = 2- y
-    elif np.abs(result) < 0.5: # Resultado para clase 3
-        error = 3 - y
-    error_T.append(error)
+    errorTN = ErrorDataMulticapa(w0, w1, df_TN)
+    error_T.append(errorTN) 
+    errorP = ErrorDataMulticapa(w0, w1, df_PN)
+    error_P.append(errorP) 
+
+    w0 = w0_post
+    w1 = w1_post
 
     iter += 1        # Contador de iteraciones
-    if iter > 200:   # Condición de iteraciones para salir del ciclo while
-        error_salida = 0.06
+    if iter > 2000:   # Condición de iteraciones para salir del ciclo while
+        errorTN = 0.03
         t = 200
-    elif error == 0:  # Contador de aciertos continuos
+    elif errorTN == 0:  # Contador de aciertos continuos
         t += 1
     else:
         t = 0        #Reinicio del contador de aciertos continuos
 
 
-# %%
-x = np.arange(0,len(error_T))  # Vector de iteraciones 
+print("Iteraciones: ", iter)
+print("Pesos")
+print(w0) 
+print(w1)
 
-################### Gráfica ##################
-plt.plot(x, np.abs(error_T), 'x', label = "Entrenamiento")
-plt.plot(x, np.abs(error_P), 'o', label = "Prueba")
+# %%
+####### Gráfica de resultados ################
+x = np.arange(0,len(error_T))    # Vector que representa el número de iteraciones
+
+plt.plot(x, np.abs(error_T), 'o', label = "Entrenamiento")  #Gráfica de arreglo de errores de Entrenamiento
+plt.plot(x, np.abs(error_P), '*',label = "Prueba")          #Gráfica de arreglo de errores de Prueba
 plt.xlabel("Iteraciones")    # Etiqueta de eje X
 plt.ylabel("Error")          # Etiqueta de eje Y
 plt.title("Error Entrenamiento y Prueba")   # Título del gráfico
 plt.legend()
 plt.show()
 
-plt.plot(x, np.abs(error_s), 'o')
-plt.xlabel("Iteraciones")    # Etiqueta de eje X
-plt.ylabel("Diferencia en la salida")          # Etiqueta de eje Y
-plt.title("Diferencia según la clase")   # Título del gráfico
-plt.show()
-
 # %%
-error_R = []  #Arreglo de resultados obtenidos
+Resultado = [] #Arreglo de resultados obtenidos 
 for k in range(15):
-
+    
     ##########   Validación   ###############
-    x3,x4 =  df_RN.iloc[k, 2], df_RN.iloc[k, 3]  # Entradas
-    x_R = np.array([x3, x4, 1])                  # Arreglo de entradas      
-    xR_w0 = (w0[0:3].T * x_R)                    # Multiplicación de entradas por los pesos de la neurona 1
-    xR_w1 = (w0[3:6].T * x_R)                    # Multiplicación de entradas por los pesos de la neurona 2
-    sumR0 = xR_w0[0] + xR_w0[1] + xR_w0[2]       # Sumatoria de los productos de la neurona 1
-    sumR1 = xR_w1[0] + xR_w1[1] + xR_w1[2]       # Sumatoria de los productos de la neurona 2
-    h1R = sig(sumR0)                             # Función de transferencia de cada neurona
-    h2R = sig(sumR1)
-    h_R = np.array([h1R,h2R,1])                  # Arreglo de resultado de las neuronas 1 y 2
-    xR_w2 = (w1.T * h_R)                         # Multiplicación de arreglo de resultados de la capa interna por los pesos de la segunda capa
-    sumR2 = xR_w2[0] + xR_w2[1] + xR_w2[2]       #Sumatoria de los productos para la segunda capa
-    resultR = sig(sumR2)                         # Resultado final
-    if np.abs(resultR ) < 0.3:
-        error_R.append(1)
-    elif np.abs(resultR ) < 0.4:
-        error_R.append(2)
-    elif np.abs(resultR ) < 0.5:
-        error_R.append(3)
+    x3,x4 =  df_RN.iloc[k, 2], df_RN.iloc[k, 3] # Entradas
+    x = np.array([x3,x4,1])                   # Arreglo de entradas
+    x_w0 = (w0[0:3].T * x)
+    x_w1 = (w0[3:6].T * x)
+    A0 = x_w0[0] + x_w0[1] + x_w0[2]
+    A1 = x_w1[0] + x_w1[1] + x_w1[2]
+    Z1 = sig(A0)
+    Z2 = sig(A1)
+    h = np.array([Z1,Z2,1]) #Arreglo de entradas para la segunda capa
+    ##### Segunda capa  #####
+    x_w2 = (w1.T * h)
+    AK = x_w2[0] + x_w2[1] + x_w2[2]
 
-x = np.arange(0,len(error_R))
+    
+    if(AK <= 0.3):
+        ZK = 3.0
+        #error_i = 0.145 - AK 
+    elif(AK <= 0.45):
+        ZK = 2.0
+        #error_i = 0.3 - AK 
+    else:
+        ZK = 1.0
+        #error_i = 0.6 - AK 
+    Resultado.append(ZK)                       # Se agrega el resultado de la sumatoria
 
-plt.plot(x, np.abs(error_R), 'o')
+####### Gráfica de resultados #########
+x = np.arange(0,len(Resultado)) # Vector que representa el número de elementos
+
+plt.plot(x, np.abs(Resultado), 'o') #Gráfica de arreglo de resultado obtenido para cada elemento
 plt.xlabel("Elemento")
 plt.ylabel("Valor obtenido")
 plt.title("Validación")
@@ -412,8 +444,24 @@ plt.show()
 # # Monocapa con 4 variables
 
 # %%
-Tolerancia = 0.05  # Valor de tolerancia de error
-error = 100        # Error grande
+def Error4Dataframe(W, Dataf):   
+    #Calcula el error promedio del vector de errores para cada fila del dataset
+    error =[]
+
+    for i in range(len(Dataf)):
+        x0,x1,x2,x3,y =  df_TN.iloc[i, 0], df_TN.iloc[i, 1], df_TN.iloc[i, 2], df_TN.iloc[i, 3], df_TN.iloc[i, 4] # Entradas y valor esperado
+        x = np.array([x0,x1,x2,x3,1])                        # Arreglo de entradas
+        x_w = (W.T * x)                                     # Multiplicación de entradas por los pesos
+        suma = x_w[0] + x_w[1] + x_w[2] + x_w[3] +x_w[4]     # Sumatoria de los productos
+        error_i = suma - y                # Cálculo del error
+        error.append(error_i)           # Se agrega el error calculado al arreglo de errores de entrenamiento
+
+    error = np.array(error)
+    return np.mean(error)
+
+# %%
+Tolerancia = 0.03  # Valor de tolerancia de error
+errorTN = 100        # Error grande
 
 error_T = []       # Arreglo para almacenar los valores del error para cada elemento de entrenamiento
 error_P = []       # Arreglo para almacenar los valores del error para cada elemento de prueba
@@ -423,33 +471,28 @@ iter = 0           # Contador de iteraciones
 u = 0.04           # Paso para modificación de pesos
 t = 0              # Cantidad de aciertos continuos para mejorar el algoritmo
 
-while (np.abs(error) > Tolerancia or t < 4):  # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 4
+while (np.abs(errorTN) > Tolerancia):  # Cuando el error sea menor a la toleracia o los aciertos continuos son menores a 4
     ########## Entrenamiento #########
     i = random.randint(0, 104) # Índice aleatorio
     x0,x1,x2,x3,y =  df_TN.iloc[i, 0], df_TN.iloc[i, 1], df_TN.iloc[i, 2], df_TN.iloc[i, 3], df_TN.iloc[i, 4] # Entradas y valor esperado
     x = np.array([x0,x1,x2,x3,1])                        # Arreglo de entradas
     x_w = (w0.T * x)                                     # Multiplicación de entradas por los pesos
     suma = x_w[0] + x_w[1] + x_w[2] + x_w[3] +x_w[4]     # Sumatoria de los productos
-    error = suma - y                                     # Cálculo del error
-    error_T.append(error)                                # Se agrega el error calculado al arreglo de errores de entrenamiento
+    error = suma - y
+
+    w0 = w0 - u * x * error # Actualización de los pesos
+
+    errorTN = Error4Dataframe(w0, df_TN)                   # Cálculo del error
+    error_T.append(errorTN)                                # Se agrega el error calculado al arreglo de errores de entrenamiento
 
      ###########    Prueba  ##########
-    j = random.randint(0, 29)      # Índice aleatorio
-    x4,x5,x6,x7,y1 =  df_PN.iloc[j, 0],df_PN.iloc[j, 1],df_PN.iloc[j, 2], df_PN.iloc[j, 3], df_PN.iloc[j, 4] # Entradas y valor esperado
-    x_P = np.array([x4,x5,x6,x7,1])                      # Arreglo de entradas
-    xP_w = (w0.T * x_P)                                  # Multiplicación de entradas por los pesos
-    sumaP = xP_w[0] + xP_w[1] + xP_w[2] + xP_w[3] + xP_w[4]   # Sumatoria de los productos
-    errorP = sumaP - y1                                  # Cálculo del error
+    errorP = Error4Dataframe(w0, df_PN)                                 # Cálculo del error
     error_P.append(errorP)                               # Se agrega el error calculado al arreglo de errores de prueba
 
-    if  np.abs(error) > Tolerancia:
-        w0 = w0 - u*x*error
-        t = 0
-    elif  np.abs(error) < Tolerancia:
-        t += 1
+   
 
-    iter += 1
-    if iter > 5000:
+    iter += 1     #Contador de iteraciones
+    if iter > 500:   #Límite de iteraciones
         error = 0.02
         t = 6
     
